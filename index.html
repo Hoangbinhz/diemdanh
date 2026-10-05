@@ -74,7 +74,7 @@
     }, 200);
   };
 
-  function onCred(r) {
+ function onCred(r) {
     const d = decode(r.credential);
     if (!String(d.email).toLowerCase().endsWith(DOMAIN)) {
       show('Bạn đăng nhập bằng <b>' + d.email + '</b>. Hãy dùng mail ' + DOMAIN, 'bad'); return;
@@ -83,7 +83,10 @@
     $('login').classList.add('hide'); $('scan').classList.remove('hide');
     $('who').textContent = d.name ? d.name + ' (' + d.email + ')' : d.email;
     $('out').classList.add('hide');
-    if (URL_TOKEN) send(URL_TOKEN); else startCamera();
+    
+    setTimeout(() => {
+      if (URL_TOKEN) send(URL_TOKEN); else startCamera();
+    }, 500);
   }
 
   // ----- Camera live -----
