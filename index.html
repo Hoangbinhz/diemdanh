@@ -173,8 +173,9 @@
   }
 
   $('retry').onclick = startCamera;
-  $('logout').onclick = e => {
+ $('logout').onclick = e => {
     e.preventDefault();
+    busy = false; 
     if (scanner) { try { scanner.stop(); } catch (x) {} }
     google.accounts.id.disableAutoSelect();
     cred = ''; $('scan').classList.add('hide'); $('login').classList.remove('hide'); $('out').classList.add('hide');
