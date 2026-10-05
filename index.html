@@ -24,9 +24,13 @@
 <body>
 <header><h1>Điểm danh TĐH64ĐH</h1><p>Đăng nhập mail trường, rồi quét mã QR trên bảng</p></header>
 <main>
-  <!-- Khung thông báo chú ý hiển thị rõ ràng cho các bạn mở qua Zalo/Messenger -->
+  <div id="inapp" class="box warn hide">
+    <b>Bạn đang mở trong Zalo/Facebook.</b> Trình duyệt này chặn camera.
+    Bấm dấu <b>⋯</b> → <b>Mở bằng trình duyệt ngoài</b> (Chrome/Safari).
+  </div>
+
   <div class="box warn">
-    ⚠️ <b>Lưu ý quan trọng:</b> Nếu bạn đang mở link trong <b>Zalo, Messenger hoặc Facebook</b>, hãy bấm vào dấu <b>⋯</b> ở góc trên rồi chọn <b>"Mở bằng trình duyệt ngoài" (Chrome/Safari)</b> để đăng nhập và quét camera được nhé!
+    ⚠️ <b>Lưu ý:</b> Hãy mở bằng <b>Chrome hoặc Safari</b> để đăng nhập và quét camera mượt mà nhất!
   </div>
 
   <div id="login" class="box">
@@ -53,9 +57,12 @@
   const $ = id => document.getElementById(id);
   let cred = '', email = '', scanner = null, busy = false;
 
+  if (/Zalo|FBAN|FBAV|FB_IAB|Instagram|Line\//i.test(navigator.userAgent)) $('inapp').classList.remove('hide');
+
   function show(msg, cls) { const o = $('out'); o.className = 'box ' + (cls || ''); o.innerHTML = msg; }
   function decode(jwt) { return JSON.parse(decodeURIComponent(escape(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))))); }
 
+  // ----- Đăng nhập Google -----
   window.onload = () => {
     const wait = setInterval(() => {
       if (!window.google || !google.accounts) return;
@@ -78,13 +85,15 @@
     if (URL_TOKEN) send(URL_TOKEN); else startCamera();
   }
 
+  // ----- Camera live -----
   function camError(err) {
     $('retry').classList.remove('hide');
     const n = (err && (err.name || err)) + '';
     let hint = 'Lỗi: ' + n + '. ';
     if (/NotAllowed|Permission/i.test(n)) hint += 'Trình duyệt đang chặn camera: bấm biểu tượng ổ khóa cạnh địa chỉ → Camera → Cho phép, rồi bấm "Bật lại camera".';
-    else if (/NotFound|Devices/i.test(n)) hint += 'Thiết bị không có camera. Hãy dùng điện thoại.';
-    else hint += 'Hãy mở bằng Chrome/Safari.';
+    else if (/NotFound|Devices/i.test(n)) hint += 'Thiết bị không có camera (máy tính bàn thường không có). Hãy dùng điện thoại.';
+    else if (/NotReadable/i.test(n)) hint += 'Camera đang bị ứng dụng khác dùng. Hãy tắt ứng dụng đó.';
+    else hint += 'Hãy mở bằng Chrome/Safari (không dùng Zalo/Facebook).';
     show(hint, 'bad');
   }
 
@@ -106,25 +115,24 @@
     }
   }
 
+  // Khóa cứng ngay lập tức tại hàm đọc QR để chống quét đúp 100%
   function onScan(text) {
     if (busy) return;
     let t = '';
     try { t = new URL(text).searchParams.get('t') || ''; } catch (e) {}
-    if (t) send(t);
+    if (t) {
+      busy = true;
+      if (scanner) {
+        try { scanner.stop(); } catch (e) {}
+      }
+      send(t);
+    }
   }
 
+  // ----- Gửi điểm danh -----
   function send(token) {
-    if (busy) return;
     if (decode(cred).exp * 1000 < Date.now() + 5000) {
       show('Phiên đăng nhập hết hạn, đang đăng nhập lại…', 'warn'); google.accounts.id.prompt(); return;
-    }
-    
-    busy = true;
-    if (scanner) { 
-      try { 
-        scanner.pause(true); 
-        scanner.stop(); 
-      } catch (e) {} 
     }
     
     show('Đang ghi nhận…');
@@ -147,7 +155,7 @@
           show('<b>' + (r.name || email) + '</b><br>' + r.msg, 'ok');
         } else {
           show(r.msg, 'bad'); busy = false;
-          if (scanner) { try { scanner.resume(); } catch (e) {} }
+          if (scanner) { try { startCamera(); } catch (e) {} }
         }
       })
       .catch(e => {
@@ -156,8 +164,8 @@
         show(base + ' Đang kiểm tra kết nối…', 'bad');
         fetch(EXEC_URL + '?action=ping').then(r => r.json())
           .then(() => show(base + ' Máy chủ vẫn truy cập được, hãy quét lại mã mới đang hiện trên bảng.', 'bad'))
-          .catch(() => show(base + ' Điện thoại không kết nối được tới máy chủ Apps Script.', 'bad'));
-        busy = false; if (scanner) { try { scanner.resume(); } catch (x) {} } });
+          .catch(() => show(base + ' Điện thoại không kết nối được tới máy chủ Apps Script. Thử đổi Wi-Fi/4G hoặc tắt chế độ tiết kiệm dữ liệu.', 'bad'));
+        busy = false; if (scanner) { try { startCamera(); } catch (x) {} } });
   }
 
   $('retry').onclick = startCamera;
